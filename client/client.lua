@@ -101,6 +101,8 @@ local function CleanMoney()
                 end
                 TriggerServerEvent('qb-laundering:server:clean', dialog.amount)
             end
+        else
+            QBCore.Functions.Notify('Vous n\'avez pas de société pour laver de l\'argent sale !', 'error')
         end
     end)
 end
@@ -227,28 +229,9 @@ RegisterNetEvent('qb-laundering:client:invest', function()
 end)
 
 -- Threads
-
 CreateThread(function()
     for k, v in pairs(Config.Locations) do
         if k == 'washing' then
-            exports['qb-target']:AddBoxZone(v.name, v.coords, v.length, v.width, {
-                name = v.name,
-                debugPoly = v.debugPoly,
-                minZ = v.coords.z - 2,
-                maxZ = v.coords.z + 2,
-            }, {
-                options = {
-                    {
-                        icon = 'fa-solid fa-sack-dollar',
-                        label = 'Laver l\'argent sale',
-                        action = function()
-                            CleanMoney()
-                        end
-                    },
-                },
-                distance = 1.5
-            })
-
             exports['qb-target']:AddBoxZone(v.name, v.coords, v.length, v.width, {
                 name = v.name,
                 debugPoly = v.debugPoly,
