@@ -4,7 +4,7 @@ Config.TaxRate = 0.10 -- percentage
 Config.StartupFee = 75000 -- Minimum required to start business
 Config.Cooldown = 86400 -- secondes
 Config.img = "qb-inventory/html/images/" -- Set this to your inventory
-Config.animDict = 'anim@amb@business@cfm@cfm_drying_notes@' -- https://alexguirre.github.io/animations-list/
+Config.animDict = 'anim@amb@business@cfm@cfm_drying_notes@'
 Config.anim = 'loading_v3_worker'
 Config.animTime = 5000 -- milliseconds
 
@@ -76,7 +76,27 @@ Config.AllowedItems = {
     },
     ["10kgoldchain"] = {
         name = "10kgoldchain",
-        reward = 3000,
+        reward = 5750,
+    },
+    ["goldchain"] = {
+        name = "goldchain",
+        reward = 2500,
+    },
+    ["rolex"] = {
+        name = "rolex",
+        reward = 3200,
+    },
+    ["diamond_ring"] = {
+        name = "diamond_ring",
+        reward = 2700,
+    },
+    ["goldbar"] = {
+        name = "goldbar",
+        reward = 5000,
+    },
+    ["diamond"] = {
+        name = "diamond",
+        reward = 750,
     },
 }
 
