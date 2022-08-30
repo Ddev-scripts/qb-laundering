@@ -4,13 +4,10 @@ RegisterNetEvent('qb-laundering:server:sellItem', function(amount, itemSell)
     local Player = QBCore.Functions.GetPlayer(source)
     local item = Player.Functions.GetItemByName(itemSell)
     if (item) then
-
-        print(type(amount), type(item.amount))
         if (item.amount >= amount) then
-
             local money = Config.AllowedItems[itemSell].reward * amount
-
             Player.Functions.AddMoney('cash', money)
+            Player.Functions.RemoveItem(itemSell, amount)
             TriggerClientEvent('QBCore:Notify', source, 'Vous avez vendu votre / vos ' .. QBCore.Shared.Items[itemSell].label .. ' pour $' .. money, 'success')
         else
             TriggerClientEvent('QBCore:Notify', source, 'Vous n\'avez que : ' .. item.amount .. ' ' .. QBCore.Shared.Items[itemSell].label, 'error')
@@ -77,11 +74,12 @@ RegisterNetEvent('qb-laundering:server:clean', function(amount)
     local src = source
     local ped = GetPlayerPed(src)
     local Player = QBCore.Functions.GetPlayer(src)
+    local worth = 0
     if not Player then
         return
     end
 
-    local amount = tonumber(amount)
+    local amount, amountToGive = tonumber(amount), tonumber(amount)
 
     local businessWorth = MySQL.scalar.await('SELECT worth FROM qb_laundering WHERE owner = ?', { Player.PlayerData.citizenid })
 
@@ -94,10 +92,14 @@ RegisterNetEvent('qb-laundering:server:clean', function(amount)
         return TriggerClientEvent('QBCore:Notify', src, 'Vous n\'avez pas de billets marqués !', 'error')
     end
 
-    local worth = hasItem.info.worth
+    local hasItems = Player.Functions.GetItemsByName('markedbills')
+
+    for i, v in ipairs(hasItems) do
+        worth = worth + v.info.worth
+    end
 
     if worth < amount then
-        return TriggerClientEvent('QBCore:Notify', src, 'Votre sac de billets ne contient pas assez de billets pour blanchir cette somme !', 'error')
+        return TriggerClientEvent('QBCore:Notify', src, 'Votre / Vos sac(s) de billets ne contient / contiennent pas assez de billets pour blanchir cette somme !', 'error')
     end
 
     local washDate = MySQL.scalar.await('SELECT last_washed FROM qb_laundering WHERE owner = ?', { Player.PlayerData.citizenid })
@@ -112,29 +114,26 @@ RegisterNetEvent('qb-laundering:server:clean', function(amount)
     local reqDiff = Config.Cooldown
 
     if diff >= reqDiff then
-        local itemSlot = hasItem.slot
-        local newWorth = tonumber(worth - amount)
-
-        if newWorth <= 0 then
-            TaskPlayAnim(ped, Config.animDict, Config.anim, 1.0, 1.0, Config.animTime, 1, 0, 0, 0, 0)
-            TriggerClientEvent('QBCore:Notify', src, 'Lavage de vos billets en cours ..', 'primary')
-            Wait(Config.animTime)
-
-            Player.Functions.RemoveItem('markedbills', 1)
-            Player.Functions.AddMoney('cash', amount)
-            TriggerClientEvent('QBCore:Notify', src, 'Vous avez reçu $' .. amount .. ' en cash', 'success')
-
-            MySQL.query('UPDATE qb_laundering SET last_washed = CURRENT_TIMESTAMP() WHERE owner = ?', { Player.PlayerData.citizenid })
-        else
-            TaskPlayAnim(ped, Config.animDict, Config.anim, 1.0, 1.0, Config.animTime, 1, 0, 0, 0, 0)
-            TriggerClientEvent('QBCore:Notify', src, 'Lavage de vos billets en cours ..', 'primary')
-            Wait(Config.animTime)
-            Player.PlayerData.items[itemSlot].info.worth = newWorth
-            Player.Functions.SetInventory(Player.PlayerData.items, true)
-            Player.Functions.AddMoney('cash', amount)
-            TriggerClientEvent('QBCore:Notify', src, 'Vous avez reçu $' .. amount .. ' en cash', 'success')
-            MySQL.query('UPDATE qb_laundering SET last_washed = CURRENT_TIMESTAMP() WHERE owner = ?', { Player.PlayerData.citizenid })
+        for i, v in ipairs(hasItems) do
+            if amount > 0 then
+                if amount >= v.info.worth then
+                    Player.Functions.RemoveItem('markedbills', 1, v.slot)
+                    amount = amount - v.info.worth
+                else
+                    local Player = QBCore.Functions.GetPlayer(src)
+                    Player.PlayerData.items[v.slot].info.worth = v.info.worth - amount
+                    Player.Functions.SetInventory(Player.PlayerData.items, true)
+                end
+            end
         end
+
+        TaskPlayAnim(ped, Config.animDict, Config.anim, 1.0, 1.0, Config.animTime, 1, 0, 0, 0, 0)
+        TriggerClientEvent('QBCore:Notify', src, 'Lavage de vos billets en cours ..', 'primary')
+        Wait(Config.animTime)
+
+        Player.Functions.AddMoney('cash', amountToGive)
+        TriggerClientEvent('QBCore:Notify', src, 'Vous avez reçu $' .. amountToGive .. ' en cash', 'success')
+        MySQL.query('UPDATE qb_laundering SET last_washed = CURRENT_TIMESTAMP() WHERE owner = ?', { Player.PlayerData.citizenid })
     else
         TriggerClientEvent('QBCore:Notify', src, 'Vous ne pouvez nettoyer l\'argent qu\'une fois toutes les ' .. Config.Cooldown / 3600 .. ' heures', 'error')
     end
@@ -158,9 +157,11 @@ QBCore.Functions.CreateCallback('qb-laundering:server:getBusiness', function(sou
     if not Player then
         return
     end
+
     local sql = MySQL.query.await('SELECT * FROM qb_laundering WHERE owner = ?', { Player.PlayerData.citizenid })
     if sql then
         cb(sql[1])
+    else
+        cb(false)
     end
-    cb(false)
 end)
